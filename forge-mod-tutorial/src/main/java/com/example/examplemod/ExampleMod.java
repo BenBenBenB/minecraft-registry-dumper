@@ -1,67 +1,32 @@
 package com.example.examplemod;
 
-import com.mojang.brigadier.Command;
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.logging.LogUtils;
-import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.telemetry.events.WorldLoadEvent;
-import net.minecraft.commands.CommandSource;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.MessageArgument;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.core.RegistryCodecs;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.chat.*;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FormattedCharSequence;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.*;
+import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.ClientChatReceivedEvent;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
-import org.apache.commons.lang3.ObjectUtils;
 import org.slf4j.Logger;
 
-import java.awt.*;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -89,12 +54,12 @@ public class ExampleMod
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }
 
-    public static void grabAllBlockInfo(RegistryAccess registryAccess)
+    public static void grabAllBlockInfo(RegistryAccess registryAccess, String filePath)
     {
         Registry<Block> blocks = registryAccess.registry(Registries.BLOCK).get();
+        Registry<BlockEntityType<?>> block_entities = registryAccess.registry(Registries.BLOCK_ENTITY_TYPE).get();
 
         String newLine = "\r\n";
-        String filePath = "C:\\src\\output\\block.toml";
         File myObj = new File(filePath);
 
         // [{namespace}.{block_id}]
@@ -149,12 +114,11 @@ public class ExampleMod
         }
     }
 
-    public static void grabAllItemInfo(RegistryAccess registryAccess)
+    public static void grabAllItemInfo(RegistryAccess registryAccess, String filePath)
     {
         Registry<Item> items = registryAccess.registry(Registries.ITEM).get();
 
         String newLine = "\r\n";
-        String filePath = "C:\\src\\output\\item.toml";
         File myObj = new File(filePath);
 
         // [{namespace}.{block_id}]
@@ -189,12 +153,11 @@ public class ExampleMod
         }
     }
 
-    public static void grabAllEntityInfo(RegistryAccess registryAccess)
+    public static void grabAllEntityInfo(RegistryAccess registryAccess, String filePath)
     {
         Registry<EntityType<?>> entities = registryAccess.registry(Registries.ENTITY_TYPE).get();
 
         String newLine = "\r\n";
-        String filePath = "C:\\src\\output\\entity.toml";
         File myObj = new File(filePath);
 
         // [{namespace}.{block_id}]
@@ -236,14 +199,49 @@ public class ExampleMod
         }
     }
 
+    public static void grabAllEnchantmentInfo(RegistryAccess registryAccess, String filePath)
+    {
+        Registry<Enchantment> enchantment_reg = registryAccess.registry(Registries.ENCHANTMENT).get();
+
+        String newLine = "\r\n";
+        File myObj = new File(filePath);
+
+        try {
+            FileWriter myWriter = new FileWriter(filePath);
+            myWriter.write("# Generated from Minecraft version 1.20.1");
+            myWriter.write(newLine);
+
+            for (var enchantment : enchantment_reg) {
+                final String enchantId = Objects.requireNonNull(enchantment_reg.getKey(enchantment)).getPath().toLowerCase();
+                final String namespace = Objects.requireNonNull(enchantment_reg.getKey(enchantment)).getNamespace().toLowerCase();
+                myWriter.write(format("[%s.%s]", namespace, enchantId));
+                myWriter.write(newLine);
+                myWriter.write(format("category = \"%s\"", enchantment.category));
+                myWriter.write(newLine);
+                myWriter.write(format("level = %s}", enchantment.getMaxLevel()));
+                myWriter.write(newLine);
+                myWriter.write(format("rarity = \"%s\"", enchantment.getRarity()));
+                myWriter.write(newLine);
+                myWriter.write(format("curse = %s}", enchantment.isCurse()));
+                myWriter.write(newLine);
+            }
+            myWriter.close();
+            System.out.println("Successfully wrote items to the file.");
+        } catch (IOException e) {
+            System.out.println("An error occurred.");
+        }
+    }
+
     public static void getRegistered() {
+        String outPutDir = "C:\\src\\output\\";
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
         assert level != null;
         RegistryAccess registryAccess =level.registryAccess();
-        grabAllBlockInfo(registryAccess);
-        grabAllItemInfo(registryAccess);
-        grabAllEntityInfo(registryAccess);
+        grabAllBlockInfo(registryAccess, format("%s%s", outPutDir, "block.toml"));
+        grabAllItemInfo(registryAccess, format("%s%s", outPutDir, "item.toml"));
+        grabAllEntityInfo(registryAccess, format("%s%s", outPutDir, "entity.toml"));
+        grabAllEnchantmentInfo(registryAccess, format("%s%s", outPutDir, "enchantment.toml"));
     }
 
     @SubscribeEvent
